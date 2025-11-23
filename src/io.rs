@@ -2,7 +2,7 @@ use crate::model::{MAX_NUMBERS, Record};
 use std::fs::File;
 use std::io::{Read, Write};
 
-const BUFFER_SIZE: usize = 16 * 512;
+const BUFFER_SIZE: usize = (1 + MAX_NUMBERS) * 512;
 pub struct BuffWriter {
     path: File,
     buffer: [u8; BUFFER_SIZE],
@@ -51,7 +51,7 @@ impl BuffWriter {
             self.writes += 1;
             self.path
                 .write_all(self.buffer[0..self.pos].as_ref())
-                .expect("IO ERROR");
+                .expect("WRITE ERROR");
             self.pos = 0;
         }
     }
