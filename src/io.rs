@@ -2,7 +2,7 @@ use crate::model::{MAX_NUMBERS, Record};
 use std::fs::File;
 use std::io::{Read, Write};
 
-const BUFFER_SIZE: usize = 8192;
+const BUFFER_SIZE: usize = 16 * 512;
 pub struct BuffWriter {
     path: File,
     buffer: [u8; BUFFER_SIZE],
@@ -26,6 +26,10 @@ impl BuffWriter {
         for &num in record.numbers.iter() {
             self.write_byte(num);
         }
+
+        for _ in 0..MAX_NUMBERS - (len as usize) {
+            self.write_byte(0)
+        }
     }
 
     pub fn close(&mut self) {
@@ -43,9 +47,13 @@ impl BuffWriter {
     }
 
     fn flush(&mut self) {
-        self.path.write_all(self.buffer[0..self.pos].as_ref()).expect("IO ERROR");
-        self.pos = 0;
-        self.writes += 1;
+        if (self.pos > 0) {
+            self.writes += 1;
+            self.path
+                .write_all(self.buffer[0..self.pos].as_ref())
+                .expect("IO ERROR");
+            self.pos = 0;
+        }
     }
 }
 
@@ -62,9 +70,12 @@ impl BuffReader {
         let size = self.read_byte()?;
         let mut numbers = Vec::with_capacity(size as usize);
 
-        for _ in 0..size {
+        for i in 0..MAX_NUMBERS {
             let byte = self.read_byte().expect("READ ERROR");
-            numbers.push(byte);
+            let index = i as u8;
+            if (index < size) {
+                numbers.push(byte);
+            }
         }
 
         Some(Record { numbers })

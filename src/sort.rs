@@ -8,15 +8,10 @@ pub fn sort(input_path: &str, t1_path: &str, t2_path: &str, print_each_phase: bo
     let mut phases = 0;
 
     println!("Before sorting:");
-    print_all(input_path);
+ //   print_all(input_path);
 
     loop {
         phases += 1;
-
-        if (print_each_phase) {
-            println!("Phase {phases}: ");
-            print_all(input_path);
-        }
 
         let input = File::open(input_path).unwrap();
         let t1 = File::create(t1_path).unwrap();
@@ -47,13 +42,18 @@ pub fn sort(input_path: &str, t1_path: &str, t2_path: &str, print_each_phase: bo
         reads += t1.reads + t2.reads;
         writes += output.writes;
 
+        if (print_each_phase) {
+            println!("Phase {phases}: ");
+            print_all(input_path);
+        }
+
         if sorted {
             break;
         }
     }
 
     println!("After sorting:");
-    print_all(input_path);
+  //  print_all(input_path);
 
     println!("Reads: {reads} Writes: {writes} Total Phases: {phases}");
 }
@@ -145,10 +145,11 @@ fn merge(output: &mut BuffWriter, t1reader: &mut BuffReader, t2reader: &mut Buff
 fn distribute(input: &mut BuffReader, t1writer: &mut BuffWriter, t2writer: &mut BuffWriter) {
     let mut prev: Option<Record> = None;
     let mut to_t1 = true;
-
+    let mut series = 1;
     while let Some(current) = input.read() {
         if (prev.as_ref().is_some_and(|prev| prev > &current)) {
             to_t1 = !to_t1;
+            series += 1;
         }
 
         if to_t1 {
@@ -159,6 +160,7 @@ fn distribute(input: &mut BuffReader, t1writer: &mut BuffWriter, t2writer: &mut 
 
         prev = Some(current);
     }
+    println!("Total series: {series}");
 }
 
 fn print_all(input_path: &str) {
