@@ -1,0 +1,18 @@
+Eksperyment został przeprowadzony wykorzystując metodę "natural merge 2+1" opartej na 3 taśmach, 2 wejściowych oraz 1 wyjściowej.
+Na początku dane wejściowe zostają podzielone na serie (runs) w taki sposób, że każda seria to niemalejący ciąg liczb.
+Następnie serie zostają naprzemiennie zapisane na 2 taśmach.
+W kolejnym etapie wykonywane jest zcalanie taśm i zapis na taśmie wyjściowej.
+Cały proces jest powtarzany do momentu nie uzyskania posortowanego wyjścia.
+Liczba faz nie przekracza ceil(log2(r)) gdzie r jest równe początkowej liczbie serii.
+W każdej fazie dla każdego rekordu wykonywane są 2 operacje odczytu, z pliku danych wejściowych przy dystrybucji oraz z jednej z taśm w trakcie zcalania.
+Dodatkowo wykonywane są 2 operacje zapisu, na jednej z taśm w trakcie dystrybucji oraz na taśmie wyjściowej w trakcie zcalania.
+Łączna liczba operacji dyskowych wynosi w teorii: 4N * ceil(log2(r)) / b gdzie N = liczba rekordów, r jest równe początkowej liczbe serii a b to współczynnik blokowy wynoszący ilość rekordów mieszczących się na stronie.
+
+Jako rekord została przyjęta struktura zawierająca tablicę o rozmiarze (1,15) liczb naturalnych, rekordy są porównywane na podstawie liczby liczb pierwszych zawartych w rekordzie.
+Każdy z rekordów zapisywany jest na dysku jako rozmiar_tablicy | tablica liczb, nawet jeśli liczb jest mniej niż 15 to reszta wolnych pól jest zapisywana jako 0.
+W taki sposób każdy rekord zajmuje 16 bajtów na dysku.
+
+Program wypisuję na standardowe wyjście w zależności od ustawionych opcji liczbę odczytów, liczbę zapisów, liczbę faz, liczbę serii oraz plik wyjściowy po każdej fazie.
+
+W eksperymencie przyjęto współczynnik blokowy jako 512 (rozmiar buforu 8192B = 512 * 16B)
+
