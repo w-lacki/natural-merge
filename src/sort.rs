@@ -1,37 +1,63 @@
-use crate::io::{Reader, Writer};
-use crate::model::Record;
+use crate::io::{BuffReader, BuffWriter};
+use crate::model::{Record, count_primes};
 use std::fs::File;
 
-pub(crate) fn sort(input_path: &str, t1_path: &str, t2_path: &str) {
+pub fn sort(input_path: &str, t1_path: &str, t2_path: &str, print_each_phase: bool) {
+    let mut reads = 0;
+    let mut writes = 0;
+    let mut phases = 0;
+
+    println!("Before sorting:");
+    print_all(input_path);
+
     loop {
+        phases += 1;
+
+        if (print_each_phase) {
+            println!("Phase {phases}: ");
+            print_all(input_path);
+        }
+
         let input = File::open(input_path).unwrap();
         let t1 = File::create(t1_path).unwrap();
         let t2 = File::create(t2_path).unwrap();
 
-        let mut input = crate::io::BuffReader::new(input);
-        let mut t1_writer = crate::io::BuffWriter::new(t1);
-        let mut t2_writer = crate::io::BuffWriter::new(t2);
+        let mut input = BuffReader::new(input);
+        let mut t1_writer = BuffWriter::new(t1);
+        let mut t2_writer = BuffWriter::new(t2);
 
         distribute(&mut input, &mut t1_writer, &mut t2_writer);
+
         input.close();
         t1_writer.close();
         t2_writer.close();
 
-        let mut t1 = crate::io::BuffReader::new(File::open(t1_path).unwrap());
-        let mut t2 = crate::io::BuffReader::new(File::open(t2_path).unwrap());
-        let mut output = crate::io::BuffWriter::new(File::create(input_path).unwrap());
+        reads += input.reads;
+        writes += t1_writer.writes + t2_writer.writes;
+
+        let mut t1 = BuffReader::new(File::open(t1_path).unwrap());
+        let mut t2 = BuffReader::new(File::open(t2_path).unwrap());
+        let mut output = BuffWriter::new(File::create(input_path).unwrap());
 
         let sorted = merge(&mut output, &mut t1, &mut t2);
         output.close();
         t1.close();
         t2.close();
 
+        reads += t1.reads + t2.reads;
+        writes += output.writes;
+
         if sorted {
             break;
         }
     }
+
+    println!("After sorting:");
+    print_all(input_path);
+
+    println!("Reads: {reads} Writes: {writes} Total Phases: {phases}");
 }
-fn merge(output: &mut impl Writer, t1reader: &mut impl Reader, t2reader: &mut impl Reader) -> bool {
+fn merge(output: &mut BuffWriter, t1reader: &mut BuffReader, t2reader: &mut BuffReader) -> bool {
     let mut sorted = true;
     let mut prev: Option<Record> = None;
 
@@ -70,7 +96,7 @@ fn merge(output: &mut impl Writer, t1reader: &mut impl Reader, t2reader: &mut im
     sorted
 }
 
-fn distribute(input: &mut impl Reader, t1writer: &mut impl Writer, t2writer: &mut impl Writer) {
+fn distribute(input: &mut BuffReader, t1writer: &mut BuffWriter, t2writer: &mut BuffWriter) {
     let mut prev: Option<Record> = None;
     let mut to_t1 = true;
 
@@ -87,4 +113,14 @@ fn distribute(input: &mut impl Reader, t1writer: &mut impl Writer, t2writer: &mu
 
         prev = Some(current);
     }
+}
+
+fn print_all(input_path: &str) {
+    let mut reader = BuffReader::new(File::open(input_path).unwrap());
+
+    while let Some(record) = reader.read() {
+        println!("{:?} {:?}", record, count_primes(record.numbers.as_ref()));
+    }
+
+    reader.close();
 }

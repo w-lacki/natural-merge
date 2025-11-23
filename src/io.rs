@@ -2,36 +2,12 @@ use crate::model::{MAX_NUMBERS, Record};
 use std::fs::File;
 use std::io::{Read, Write};
 
-pub trait Reader {
-    fn read(&mut self) -> Option<Record>;
-    fn close(&mut self);
-}
-
-pub trait Writer {
-     fn write(&mut self, record: Record);
-    fn close(&mut self);
-}
-
-const BUFFER_SIZE: usize = 1 + MAX_NUMBERS;
-pub(crate) struct BuffWriter {
+const BUFFER_SIZE: usize = 8192;
+pub struct BuffWriter {
     path: File,
     buffer: [u8; BUFFER_SIZE],
     pos: usize,
-}
-
-impl Writer for BuffWriter {
-    fn write(&mut self, record: Record) {
-        let len = record.numbers.len() as u8;
-        self.write_byte(len);
-        for &num in record.numbers.iter() {
-            self.write_byte(num);
-        }
-    }
-
-    fn close(&mut self) {
-        self.flush();
-        self.path.sync_all().unwrap();
-    }
+    pub(crate) writes: usize,
 }
 
 impl BuffWriter {
@@ -40,7 +16,21 @@ impl BuffWriter {
             path,
             buffer: [0; BUFFER_SIZE],
             pos: 0,
+            writes: 0,
         }
+    }
+
+    pub fn write(&mut self, record: Record) {
+        let len = record.numbers.len() as u8;
+        self.write_byte(len);
+        for &num in record.numbers.iter() {
+            self.write_byte(num);
+        }
+    }
+
+    pub fn close(&mut self) {
+        self.flush();
+        self.path.sync_all().unwrap();
     }
 
     fn write_byte(&mut self, byte: u8) {
@@ -53,8 +43,9 @@ impl BuffWriter {
     }
 
     fn flush(&mut self) {
-        self.path.write_all(self.buffer[0..self.pos].as_ref());
+        self.path.write_all(self.buffer[0..self.pos].as_ref()).expect("IO ERROR");
         self.pos = 0;
+        self.writes += 1;
     }
 }
 
@@ -63,33 +54,29 @@ pub(crate) struct BuffReader {
     buffer: [u8; BUFFER_SIZE],
     pos: usize,
     len: usize,
+    pub(crate) reads: usize,
 }
 
-impl Reader for BuffReader {
-    fn read(&mut self) -> Option<Record> {
+impl BuffReader {
+    pub fn read(&mut self) -> Option<Record> {
         let size = self.read_byte()?;
         let mut numbers = Vec::with_capacity(size as usize);
 
         for _ in 0..size {
-            let byte = self.read_byte().expect("Unexpected EOF");
+            let byte = self.read_byte().expect("READ ERROR");
             numbers.push(byte);
         }
 
         Some(Record { numbers })
     }
 
-    fn close(&mut self) {
-        self.path.sync_all().unwrap();
-    }
-}
-
-impl BuffReader {
     pub fn new(path: File) -> Self {
         BuffReader {
             path,
             buffer: [0; BUFFER_SIZE],
             pos: 0,
             len: 0,
+            reads: 0,
         }
     }
     fn read_byte(&mut self) -> Option<u8> {
@@ -107,7 +94,12 @@ impl BuffReader {
     }
 
     fn fill(&mut self) {
-        self.len = self.path.read(&mut self.buffer).unwrap();
+        self.len = self.path.read(&mut self.buffer).expect("READ ERROR");
         self.pos = 0;
+        self.reads += 1;
+    }
+
+    pub fn close(&mut self) {
+        self.path.sync_all().unwrap();
     }
 }
